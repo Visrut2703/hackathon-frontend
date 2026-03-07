@@ -63,7 +63,7 @@ function Dashboard() {
         formData.append('file', file);
         console.log(formData);
         try {
-            const response = await fetch(`${pythonBaseUrl}/api/extract-text`, {
+            const response = await fetch(`${pythonBaseUrl}/extract-text`, {
                 method: 'POST',
                 body: formData,
             });
