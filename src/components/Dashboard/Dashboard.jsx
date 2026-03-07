@@ -42,14 +42,28 @@ function Dashboard() {
         setSubmitting(true);
         if (!file) {
             setError('Please select a file.');
+            setSubmitting(false);
             return;
         }
+
+        // Helper to ensure URL has protocol
+        const ensureProtocol = (url) => {
+            if (!url) return '';
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                return `https://${url}`;
+            }
+            return url;
+        };
+
+        const pythonBaseUrl = ensureProtocol(import.meta.env.VITE_PYTHON_API_BASE_URL);
+        const nodeBaseUrl = ensureProtocol(import.meta.env.VITE_API_BASE_URL);
+
         console.log(file);
         const formData = new FormData();
         formData.append('file', file);
         console.log(formData);
         try {
-            const response = await fetch(`${import.meta.env.VITE_PYTHON_API_BASE_URL}/extract-text`, {
+            const response = await fetch(`${pythonBaseUrl}/extract-text`, {
                 method: 'POST',
                 body: formData,
             });
@@ -63,7 +77,7 @@ function Dashboard() {
             // console.log(data.text);
             setText(data.text);
             const res = await axios.post(
-                `${import.meta.env.VITE_API_BASE_URL}/ai/getSkills`, 
+                `${nodeBaseUrl}/ai/getSkills`, 
                 { text: data.text },
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
             );
@@ -75,7 +89,7 @@ function Dashboard() {
             localStorage.setItem('interviewId', uni);
             console.log(uni);
             const savedData = await axios.post(
-                `${import.meta.env.VITE_API_BASE_URL}/iv/saveIV`, 
+                `${nodeBaseUrl}/iv/saveIV`, 
                 { interviewId: uni, skills: res.data.text, count: questions },
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
             );
