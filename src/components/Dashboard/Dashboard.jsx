@@ -49,10 +49,11 @@ function Dashboard() {
         formData.append('file', file);
         console.log(formData);
         try {
-            const response = await fetch('http://localhost:5000/extract-text', {
+            const response = await fetch(`${import.meta.env.VITE_PYTHON_API_BASE_URL}/extract-text`, {
                 method: 'POST',
                 body: formData,
             });
+            console.log(response);
             console.log(response.ok);
             if (!response.ok) {
                 throw new Error('Error extracting text.');
@@ -61,7 +62,11 @@ function Dashboard() {
             const data = await response.json();
             // console.log(data.text);
             setText(data.text);
-            const res = await axios.post('http://localhost:8000/ai/getSkills', { text: data.text });
+            const res = await axios.post(
+                `${import.meta.env.VITE_API_BASE_URL}/ai/getSkills`, 
+                { text: data.text },
+                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+            );
             //   let tmp = await res.json();
             console.log(res.data.text);
             localStorage.setItem('languages', res.data.text);
@@ -69,11 +74,17 @@ function Dashboard() {
             setError('');
             localStorage.setItem('interviewId', uni);
             console.log(uni);
-            const savedData = await axios.post('http://localhost:8000/iv/saveIV', { interviewId: uni, skills: res.data.text, count: questions });
+            const savedData = await axios.post(
+                `${import.meta.env.VITE_API_BASE_URL}/iv/saveIV`, 
+                { interviewId: uni, skills: res.data.text, count: questions },
+                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+            );
+            console.log("saved data: " , savedData);
             navigateTo(`/interview/${uni}`);
         } catch (error) {
             console.error('Error:', error);
             setError('Error extracting text.');
+            setSubmitting(false);
         }
     };
     return (
@@ -83,7 +94,7 @@ function Dashboard() {
                     <div className='pb-8 text-center tracking-wider font-semibold text-blue-600 text-2xl'>
                         User details form
                     </div>
-                    <form className='grid gap-4 ' onSubmit={submitForm}>
+                    <form className='grid gap-4 '>
                         <TextField
                             id="outlined-basic"
                             label="Name"

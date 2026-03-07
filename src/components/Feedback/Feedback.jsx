@@ -5,8 +5,8 @@ import './index.css';
 function Feedback() {
     const name = localStorage.getItem('name');
     const uni = localStorage.getItem('interviewId');
-    let data = JSON.parse(localStorage.getItem('dataList'));
-    let scores = JSON.parse(localStorage.getItem('scores'));
+    let data = JSON.parse(localStorage.getItem('dataList')) || [];
+    let scores = JSON.parse(localStorage.getItem('scores')) || [];
     for (let i = 0; i < data.length; i++){
         data[i]['score'] = scores[i];
     }

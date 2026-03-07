@@ -43,32 +43,7 @@ function Interview() {
   const videoRef = React.useRef(null);
   const [isSubmitting, setSubmitting] = useState(false);
 
-  let recognition;
-
-  if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    // Handle the onresult event to capture the transcribed text
-    recognition.onresult = (event) => {
-      const transcript = Array.from(event.results)
-        .map((result) => result[0].transcript)
-        .join("");
-      console.log(transcript); // Here you can update your state or display the transcript
-    };
-
-    recognition.onend = () => {
-      console.log("Speech recognition ended.");
-    };
-  } else {
-    alert(
-      "Your browser does not support speech recognition. Please use Google Chrome."
-    );
-  }
+  // Note: Speech recognition is handled via react-speech-kit (useSpeechRecognition below)
 
   const data = JSON.parse(localStorage.getItem("dataList") || "[]");
   // const {isListening,transcript, startListening, stopListening} = useVoiceCollector();
@@ -113,11 +88,6 @@ function Interview() {
     setDisableAll(true);
     // setIsListening(false);
     stop();
-    videoRef.current.pause();
-    var source = document.getElementById("hr-vdo");
-    videoRef.current.load();
-    videoRef.current.play();
-    source.setAttribute("src", questions[count + 1].videoUrl);
     setVideoUrl(questions[count + 1].videoUrl);
     setCount((prev) => prev + 1);
     setResponses([
@@ -141,11 +111,13 @@ function Interview() {
       try {
         // werwerwer
         const { data } = await axios.get(
-          "https://lisa-node-backend.onrender.com/iv/getQuestions"
+          `${import.meta.env.VITE_API_BASE_URL}/iv/getQuestions`,
+          { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
         );
         const res = await axios.post(
-          "https://lisa-node-backend.onrender.com/iv/getIV",
-          { interviewId: id }
+          `${import.meta.env.VITE_API_BASE_URL}/iv/getIV`,
+          { interviewId: id },
+          { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
         );
         const iv = res.data.data[0];
         let temp = [];
@@ -172,11 +144,15 @@ function Interview() {
           // console.log(data.data[i].type, i);
         }
         // console.log('temp2', temp2);
+        // Guard: clamp count to available questions to avoid infinite loop
+        const safeCount = Math.min(iv.count, temp2.length);
         let indices = [];
-        for (let i = 0; i < iv.count; i++) {
+        for (let i = 0; i < safeCount; i++) {
           let idx = Math.floor(Math.random() * temp2.length);
-          while (indices.includes(idx)) {
+          let attempts = 0;
+          while (indices.includes(idx) && attempts < temp2.length * 2) {
             idx = Math.floor(Math.random() * temp2.length);
+            attempts++;
           }
           indices.push(idx);
           finals.push(temp2[idx]);
@@ -207,7 +183,7 @@ function Interview() {
     if (loader) {
       fetchData();
     }
-  }, [questions]);
+  }, [id]);
   const navigateTo = useNavigate();
   return (
     <>
@@ -235,9 +211,12 @@ function Interview() {
                     controls={false}
                     ref={videoRef}
                     onEnded={handleEnded}
+                    onError={handleEnded}
                     className="h-full w-full"
+                    autoPlay
+                    src={videoUrl}
+                    crossOrigin="anonymous"
                   >
-                    <source id="hr-vdo" src={videoUrl} type="video/mp4" />
                     Your browser does not support HTML video.
                   </video>
                   <div className="flex justify-center">
@@ -276,7 +255,13 @@ function Interview() {
                         </div>
                       );
                     })}
-                    <div>{value}</div>
+                    <textarea
+                      className="w-full mt-4 p-3 border-2 border-gray-400 rounded-md shadow-sm"
+                      rows={4}
+                      value={value}
+                      onChange={(e) => setValue(e.target.value)}
+                      placeholder="Your spoken answer will appear here, or you can type your answer manually..."
+                    />
                   </div>
                   <div className="flex justify-center">
                     {responses?.length === questions?.length ? (
@@ -296,12 +281,14 @@ function Interview() {
                               console.log(responses);
                               setSubmitting(true);
                               const res = await axios.post(
-                                "https://lisa-node-backend.onrender.com/iv/uploadResponses",
-                                { interviewId: id, answers: responses }
+                                `${import.meta.env.VITE_API_BASE_URL}/iv/uploadResponses`,
+                                { interviewId: id, answers: responses },
+                                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
                               );
                               const data = await axios.post(
-                                "https://lisa-node-backend.onrender.com/ai/checkAnswers",
-                                { responses }
+                                `${import.meta.env.VITE_API_BASE_URL}/ai/checkAnswers`,
+                                { responses },
+                                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
                               );
                               localStorage.setItem("interviewId", id);
                               localStorage.setItem(

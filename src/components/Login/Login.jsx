@@ -23,10 +23,14 @@ const Login = () => {
     var password = data.get("password");
     // console.log(email);
     try {
-      const response = await axios.post("https://hackathon-15hf.onrender.com/auth/login", { email, password })
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/login`, { email, password })
       if (response.data.status === true) {
         localStorage.clear();
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("email", response.data.email);
+        localStorage.setItem("name", response.data.name);
         toast.success("Login Successfully")
+        console.log("Connection Successfull")
         navigateTo('/dashboard')
       }
       else {

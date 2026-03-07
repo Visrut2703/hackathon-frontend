@@ -21,7 +21,7 @@ function App() {
     formData.append('file', file);
     console.log(formData);
     try {
-      const response = await fetch('http://localhost:5000/extract-text', {
+      const response = await fetch(`${import.meta.env.VITE_PYTHON_API_BASE_URL}/extract-text`, {
         method: 'POST',
         body: formData,
       });
@@ -33,7 +33,11 @@ function App() {
       const data = await response.json();
       console.log(data.text);
       setText(data.text);
-      const res = await axios.post('http://localhost:8000/ai/getSkills', {text: data.text});
+      const res = await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL}/ai/getSkills`, 
+          {text: data.text},
+          { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
     //   let tmp = await res.json();
       console.log(res.data.text);
       setError('');
