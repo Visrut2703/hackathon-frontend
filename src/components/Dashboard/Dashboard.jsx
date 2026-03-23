@@ -1,37 +1,18 @@
 import React, { useState } from 'react';
-import { Button, TextField, MenuItem, InputLabel, FormControl } from '@mui/material';
-import LoadingButton from '@mui/lab/LoadingButton';
-import Select from '@mui/material/Select';
-import { json, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
+import { toast } from 'react-hot-toast';
+
 function Dashboard() {
     const navigateTo = useNavigate();
-    const [name, setName] = React.useState('');
-    const [institutionName, setInstitutionName] = React.useState('');
-    const [graduationYear, setGraduationYear] = React.useState();
-    const [questions, setQuestions] = React.useState(0);
+    const [name, setName] = useState(localStorage.getItem('name') || '');
+    const [institutionName, setInstitutionName] = useState('');
+    const [graduationYear, setGraduationYear] = useState('');
+    const [questions, setQuestions] = useState(5);
     const [isSubmitting, setSubmitting] = useState(false);
-    const uni = uuidv4();
-
-    const submitForm = (e) => {
-        e.preventDefault();
-        console.log(uni);
-        localStorage.setItem('interviewId', uni);
-        navigateTo(`/interview/${uni}`);
-    };
-
-    // const handleFileInput = (e) => {
-    //     console.log(e.target.value);
-    // };
-
-    const handleChange = (e) => {
-        setQuestions(e.target.value);
-    };
-
     const [file, setFile] = useState(null);
-    const [text, setText] = useState('');
-    const [error, setError] = useState('');
+    const uni = uuidv4();
 
     const handleFileInput = (event) => {
         setFile(event.target.files[0]);
@@ -39,133 +20,145 @@ function Dashboard() {
 
     const handleSubmit = async (event) => {
         event.preventDefault();
-        setSubmitting(true);
         if (!file) {
-            setError('Please select a file.');
-            setSubmitting(false);
+            toast.error('Please upload your resume.');
             return;
         }
 
-        // Helper to ensure URL has protocol
-        const ensureProtocol = (url) => {
-            if (!url) return '';
-            if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                return `https://${url}`;
-            }
-            return url;
-        };
+        setSubmitting(true);
+        const pythonBaseUrl = import.meta.env.VITE_PYTHON_API_BASE_URL;
+        const nodeBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
-        const pythonBaseUrl = ensureProtocol(import.meta.env.VITE_PYTHON_API_BASE_URL);
-        const nodeBaseUrl = ensureProtocol(import.meta.env.VITE_API_BASE_URL);
-
-        console.log(file);
         const formData = new FormData();
         formData.append('file', file);
-        console.log(formData);
-        try {
-            const response = await fetch(`${pythonBaseUrl}/extract-text`, {
-                method: 'POST',
-                body: formData,
-            });
-            console.log(response);
-            console.log(response.ok);
-            if (!response.ok) {
-                throw new Error('Error extracting text.');
-            }
 
-            const data = await response.json();
-            // console.log(data.text);
-            setText(data.text);
-            const res = await axios.post(
+        try {
+            const extractRes = await axios.post(`${pythonBaseUrl}/extract-text`, formData);
+            const text = extractRes.data.text;
+
+            const skillsRes = await axios.post(
                 `${nodeBaseUrl}/ai/getSkills`, 
-                { text: data.text },
+                { text },
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
             );
-            //   let tmp = await res.json();
-            console.log(res.data.text);
-            localStorage.setItem('languages', res.data.text);
+
+            const skills = skillsRes.data.text;
+            localStorage.setItem('languages', skills);
             localStorage.setItem('name', name);
-            setError('');
             localStorage.setItem('interviewId', uni);
-            console.log(uni);
-            const savedData = await axios.post(
+
+            await axios.post(
                 `${nodeBaseUrl}/iv/saveIV`, 
-                { interviewId: uni, skills: res.data.text, count: questions },
+                { interviewId: uni, skills, count: questions },
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
             );
-            console.log("saved data: " , savedData);
+
+            toast.success('Interview Ready!');
             navigateTo(`/interview/${uni}`);
         } catch (error) {
             console.error('Error:', error);
-            setError('Error extracting text.');
+            toast.error('Failed to process resume. Please try again.');
+        } finally {
             setSubmitting(false);
         }
     };
-    return (
-        <>
-            <div className='flex justify-center items-center' style={{ height: '100vh' }}>
-                <div className='border-solid border-gray-100 bg-blue-50 rounded-lg border-2 p-10 w-4/12'>
-                    <div className='pb-8 text-center tracking-wider font-semibold text-blue-600 text-2xl'>
-                        User details form
-                    </div>
-                    <form className='grid gap-4 '>
-                        <TextField
-                            id="outlined-basic"
-                            label="Name"
-                            variant="outlined"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                        />
-                        <TextField
-                            id="outlined-basic"
-                            label="Institution Name"
-                            variant="outlined"
-                            value={institutionName}
-                            onChange={(e) => setInstitutionName(e.target.value)}
-                        />
-                        <TextField
-                            id="outlined-number"
-                            label="Graduation Year"
-                            type="number"
-                            variant="outlined"
-                            value={graduationYear}
-                            onChange={(e) => setGraduationYear(e.target.value)}
-                        />
-                        <FormControl fullWidth>
-                            <InputLabel id="demo-simple-select-label">{`Technical Questions`}</InputLabel>
-                            <Select
-                                labelId="demo-simple-select-label"
-                                id="demo-simple-select"
-                                value={questions}
-                                label="Technical Questions"
-                                onChange={handleChange}
-                            >
-                                <MenuItem value={0}>0</MenuItem>
-                                <MenuItem value={1}>1</MenuItem>
-                                <MenuItem value={2}>2</MenuItem>
-                                <MenuItem value={3}>3</MenuItem>
-                                <MenuItem value={4}>4</MenuItem>
-                                <MenuItem value={5}>5</MenuItem>
-                                <MenuItem value={6}>6</MenuItem>
-                                <MenuItem value={7}>7</MenuItem>
-                                <MenuItem value={8}>8</MenuItem>
-                                <MenuItem value={9}>9</MenuItem>
-                                <MenuItem value={10}>10</MenuItem>
-                            </Select>
-                        </FormControl>
-                        <input className='my-2' type="file" onChange={handleFileInput} />
-                        {isSubmitting? <LoadingButton variant="contained" type='button' onClick={handleSubmit} loading>
-                            Submit
-                        </LoadingButton>: <Button variant="contained" type='button' onClick={handleSubmit}>
-                            Submit
-                        </Button>}
-                        
 
+    return (
+        <div className="min-h-screen bg-slate-950 p-6 flex items-center justify-center">
+            <div className="max-w-4xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div className="text-left">
+                    <h1 className="text-5xl font-bold text-gradient mb-6 leading-tight">
+                        Elevate Your <br /> Interview Game.
+                    </h1>
+                    <p className="text-slate-400 text-lg mb-8">
+                        Upload your resume, and let Lisa generate a tailored AI interview experience just for you.
+                    </p>
+                    <div className="flex gap-4 items-center">
+                        <div className="flex -space-x-3">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center overflow-hidden">
+                                     <img src={`https://i.pravatar.cc/100?u=${i}`} alt="user" />
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-sm text-slate-500">Joined by 1,000+ candidates</p>
+                    </div>
+                </div>
+
+                <div className="glass-card p-8">
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        <h2 className="text-xl font-semibold text-white mb-4">Interview Setup</h2>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">Full Name</label>
+                            <input
+                                type="text"
+                                className="input-premium text-white"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                                placeholder="Your Name"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-2">Grad Year</label>
+                                <input
+                                    type="number"
+                                    className="input-premium text-white"
+                                    value={graduationYear}
+                                    onChange={(e) => setGraduationYear(e.target.value)}
+                                    placeholder="2024"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-2">Questions</label>
+                                <select 
+                                    className="input-premium text-white px-2"
+                                    value={questions}
+                                    onChange={(e) => setQuestions(e.target.value)}
+                                >
+                                    {[3, 5, 7, 10].map(q => <option key={q} value={q} className="bg-slate-900">{q} Questions</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">Resume (PDF)</label>
+                            <div className="relative border-2 border-dashed border-slate-700/50 rounded-xl p-8 text-center hover:border-indigo-500/50 transition-colors">
+                                <input
+                                    type="file"
+                                    onChange={handleFileInput}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    accept=".pdf"
+                                />
+                                <div className="space-y-2">
+                                    <div className="w-12 h-12 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                                        <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-sm text-slate-300">
+                                        {file ? file.name : 'Click or drag to upload resume'}
+                                    </p>
+                                    <p className="text-xs text-slate-500">PDF only (Max 5MB)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button 
+                            type="submit" 
+                            disabled={isSubmitting}
+                            className={`btn-premium w-full text-white mt-4 ${isSubmitting ? 'opacity-50' : ''}`}
+                        >
+                            {isSubmitting ? 'Processing Resume...' : 'Start My Interview'}
+                        </button>
                     </form>
                 </div>
             </div>
-        </>
-    )
+        </div>
+    );
 }
 
 export default Dashboard;

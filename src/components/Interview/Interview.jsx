@@ -1,581 +1,205 @@
-import React, { useEffect, useReducer, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Box, Button } from "@mui/material";
-import "./Interview.css";
-import video from "../../assets/istockphoto-1578508100-640_adpp_is.mp4";
 import { useSpeechRecognition } from "react-speech-kit";
 import MicIcon from "@mui/icons-material/Mic";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
-import { v4 as uuidv4 } from "uuid";
 import LoadingButton from "@mui/lab/LoadingButton";
-const Compo = () => {
-  return <>hi</>;
-};
 
-const NewQuestion = ({ idx, questions, responses }) => {
-  return (
-    <>
-      <div className="font-bold mb-3">
-        {`Question-${idx + 1}: ${questions[idx].question}`}
-      </div>
-    </>
-  );
-};
+const NewQuestion = ({ idx, questions }) => (
+    <div className="text-2xl font-bold text-white mb-6 animate-in slide-in-from-left duration-500">
+        <span className="text-indigo-500 mr-4">Q{idx + 1}.</span>
+        {questions[idx].question}
+    </div>
+);
 
-const NewResponse = ({ responses, idx }) => {
-  return (
-    <>
-      <div className=" mb-3">
-        {`Answer-${idx + 1}: ${responses[idx].answer}`}
-      </div>
-    </>
-  );
-};
+const NewResponse = ({ responses, idx }) => (
+    <div className="p-4 bg-white/5 rounded-xl border border-white/10 mb-8 animate-in fade-in duration-700">
+        <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest block mb-1">Your Response</span>
+        <p className="text-slate-300 italic">"{responses[idx].answer}"</p>
+    </div>
+);
 
 function Interview() {
-  const { id } = useParams();
-  const [value, setValue] = React.useState("");
-  const [disableAll, setDisableAll] = React.useState(true);
-  const [disablePlay, setDisablePlay] = React.useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [videoEnded, setVideoEnded] = useState(false);
-  const [count, setCount] = useState(0);
-  const videoRef = React.useRef(null);
-  const [isSubmitting, setSubmitting] = useState(false);
+    const { id } = useParams();
+    const navigateTo = useNavigate();
+    const [value, setValue] = useState("");
+    const [disableAll, setDisableAll] = useState(true);
+    const [isListening, setIsListening] = useState(false);
+    const [count, setCount] = useState(0);
+    const videoRef = useRef(null);
+    const [isSubmitting, setSubmitting] = useState(false);
+    const [questions, setQuestions] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [responses, setResponses] = useState([]);
+    const [videoUrl, setVideoUrl] = useState("");
 
-  // Note: Speech recognition is handled via react-speech-kit (useSpeechRecognition below)
+    const { listen, stop } = useSpeechRecognition({
+        onResult: (result) => setValue(result),
+    });
 
-  const data = JSON.parse(localStorage.getItem("dataList") || "[]");
-  // const {isListening,transcript, startListening, stopListening} = useVoiceCollector();
-  const { listen, stop } = useSpeechRecognition({
-    onResult: (result) => {
-      setValue(result); // Update the value when speech is recognized
-    },
-  });
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const { data: questionsData } = await axios.get(
+                    `${import.meta.env.VITE_API_BASE_URL}/iv/getQuestions`,
+                    { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+                );
+                const res = await axios.post(
+                    `${import.meta.env.VITE_API_BASE_URL}/iv/getIV`,
+                    { interviewId: id },
+                    { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+                );
+                
+                const iv = res.data.data[0];
+                const skills = iv.skills.toLowerCase();
+                const filtered = questionsData.data.filter(q => 
+                    q.type === 'basic' || (skills.includes(q.type === 'js' ? 'javascript' : q.type))
+                );
 
-  const playVideo = () => {
-    videoRef.current.play();
-    setDisablePlay(true);
-  };
-  const [questions, setQuestions] = useState();
-  const [loader, setLoader] = useState(true);
-  const [components, setComponents] = useState([]);
-  const [responses, setResponses] = useState([]);
+                const finalSet = [filtered[0]]; // Always start with one basic
+                while (finalSet.length < iv.count && filtered.length > finalSet.length) {
+                    const rand = filtered[Math.floor(Math.random() * filtered.length)];
+                    if (!finalSet.includes(rand)) finalSet.push(rand);
+                }
 
-  const [videoUrl, setVideoUrl] = useState("");
-  const [loading, setLoading] = useState(true);
-  const handleEnded = () => {
-    // isListening(true);
-    setVideoEnded(true);
-    setDisableAll(false);
-    // setIsListening(true);
-    // start();
-  };
-
-  const nothing = () => {
-    if (responses.length < components.length) {
-      setResponses([
-        ...responses,
-        { question: questions[questions.length - 1].question, answer: value },
-      ]);
-      setValue("");
-      setIsListening(false);
-      stop();
-    }
-  };
-
-  const addComponent = () => {
-    setDisableAll(true);
-    // setIsListening(false);
-    stop();
-    setVideoUrl(questions[count + 1].videoUrl);
-    setCount((prev) => prev + 1);
-    setResponses([
-      ...responses,
-      { question: questions[count].question, answer: value },
-    ]);
-    setValue("");
-    setComponents([
-      ...components,
-      <NewQuestion
-        key={components.length}
-        idx={components.length}
-        questions={questions}
-        responses={responses}
-      />,
-    ]);
-  };
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // werwerwer
-        const { data } = await axios.get(
-          `${import.meta.env.VITE_API_BASE_URL}/iv/getQuestions`,
-          { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-        );
-        const res = await axios.post(
-          `${import.meta.env.VITE_API_BASE_URL}/iv/getIV`,
-          { interviewId: id },
-          { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-        );
-        const iv = res.data.data[0];
-        let temp = [];
-        if (iv.skills.toLowerCase().includes("c++")) {
-          temp.push("c++");
-        }
-        if (iv.skills.toLowerCase().includes("python")) {
-          temp.push("python");
-        }
-        if (iv.skills.toLowerCase().includes("javascript")) {
-          temp.push("js");
-        }
-        // console.log(temp, data.data[0].type);
-        let temp2 = [];
-        let finals = [];
-        for (let i = 0; i < data.data.length; i++) {
-          if (data.data[i]?.type === "basic" && finals.length === 0) {
-            finals.push(data.data[i]);
-          } else {
-            if (temp.includes(data.data[i]?.type)) {
-              temp2.push(data.data[i]);
+                setQuestions(finalSet);
+                setVideoUrl(finalSet[0].videoUrl);
+                setLoading(false);
+            } catch (e) {
+                console.error(e);
             }
-          }
-          // console.log(data.data[i].type, i);
+        };
+        fetchData();
+    }, [id]);
+
+    const handleNext = () => {
+        const currentResponses = [...responses, { question: questions[count].question, answer: value }];
+        setResponses(currentResponses);
+        setValue("");
+        setIsListening(false);
+        stop();
+        
+        if (count < questions.length - 1) {
+            setCount(prev => prev + 1);
+            setVideoUrl(questions[count + 1].videoUrl);
+            setDisableAll(true);
         }
-        // console.log('temp2', temp2);
-        // Guard: clamp count to available questions to avoid infinite loop
-        const safeCount = Math.min(iv.count, temp2.length);
-        let indices = [];
-        for (let i = 0; i < safeCount; i++) {
-          let idx = Math.floor(Math.random() * temp2.length);
-          let attempts = 0;
-          while (indices.includes(idx) && attempts < temp2.length * 2) {
-            idx = Math.floor(Math.random() * temp2.length);
-            attempts++;
-          }
-          indices.push(idx);
-          finals.push(temp2[idx]);
-        }
-        // if (!questions) {
-        // console.log(finals);
-        setQuestions(finals);
-        // }
-        // else {
-        //   console.log(questions);
-        // }
-        setVideoUrl(finals[0].videoUrl);
-        setComponents([
-          <NewQuestion
-            key={0}
-            idx={0}
-            questions={finals}
-            responses={responses}
-          />,
-        ]);
-        setLoading(false);
-      } catch (e) {
-        console.log(e.message);
-      } finally {
-        setLoader(false);
-      }
     };
-    if (loader) {
-      fetchData();
-    }
-  }, [id]);
-  const navigateTo = useNavigate();
-  return (
-    <>
-      {loading ? (
-        ""
-      ) : (
-        <>
-          {loader || data?.length !== 0 ? (
-            <div className="w-full text-center h-[100vh] flex items-center flex-col justify-center font-bold">
-              <div>{`You might have done with the interview already!!!`}</div>
-            </div>
-          ) : (
-            <div className="mainUI">
-              <div className="text-center text-lg p-1 font-bold">Interview</div>
-              <div className="grid grid-cols-12 !h-full">
-                <Box
-                  sx={{
-                    width: 500,
-                    height: 500,
-                    borderRadius: 5,
-                  }}
-                  className="rounded-lg px-2 col-span-5 ml-3 !w-full !h-full"
-                >
-                  <video
-                    controls={false}
-                    ref={videoRef}
-                    onEnded={handleEnded}
-                    onError={handleEnded}
-                    className="h-full w-full"
-                    autoPlay
-                    src={videoUrl}
-                    crossOrigin="anonymous"
-                  >
-                    Your browser does not support HTML video.
-                  </video>
-                  <div className="flex justify-center">
-                    {disablePlay ? (
-                      ""
-                    ) : (
-                      <Button
-                        className="absolute bottom-16"
-                        onClick={playVideo}
-                        variant="contained"
-                        disabled={disablePlay}
-                      >
-                        Start Interview
-                      </Button>
-                    )}
-                  </div>
-                </Box>
-                <Box
-                  sx={{
-                    width: 500,
-                    height: 500,
-                    borderRadius: 5,
-                  }}
-                  className="rounded-lg p-5 col-span-7 !w-full !h-full"
-                >
-                  <div className="h-[600px] w-full p-5 bg-gray-200 rounded-lg  overflow-y-scroll">
-                    {components.map((cmp, i) => {
-                      return (
-                        <div key={i}>
-                          {cmp}
-                          {responses.length > i ? (
-                            <NewResponse responses={responses} idx={i} />
-                          ) : (
-                            <></>
-                          )}
+
+    const handleSubmit = async () => {
+        setSubmitting(true);
+        const finalResponses = [...responses, { question: questions[count].question, answer: value }];
+        try {
+            await axios.post(
+                `${import.meta.env.VITE_API_BASE_URL}/iv/uploadResponses`,
+                { interviewId: id, answers: finalResponses },
+                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+            );
+            const evalRes = await axios.post(
+                `${import.meta.env.VITE_API_BASE_URL}/ai/checkAnswers`,
+                { responses: finalResponses },
+                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+            );
+            
+            localStorage.setItem("dataList", JSON.stringify(finalResponses));
+            localStorage.setItem("scores", JSON.stringify(evalRes.data.data));
+            navigateTo("/feedback");
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">Initializing AI Interviewer...</div>;
+
+    return (
+        <div className="min-h-screen bg-slate-950 p-6">
+            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-80px)]">
+                {/* Video Section */}
+                <div className="lg:col-span-5 h-full flex flex-col">
+                    <div className="glass-card flex-1 overflow-hidden relative group">
+                        <video
+                            ref={videoRef}
+                            onEnded={() => setDisableAll(false)}
+                            className="w-full h-full object-cover"
+                            autoPlay
+                            src={videoUrl}
+                            crossOrigin="anonymous"
+                        />
+                        <div className="absolute top-4 left-4">
+                            <span className="px-3 py-1 rounded-full bg-red-500/80 text-white text-xs font-bold animate-pulse">RECORDING AI</span>
                         </div>
-                      );
-                    })}
-                    <textarea
-                      className="w-full mt-4 p-3 border-2 border-gray-400 rounded-md shadow-sm"
-                      rows={4}
-                      value={value}
-                      onChange={(e) => setValue(e.target.value)}
-                      placeholder="Your spoken answer will appear here, or you can type your answer manually..."
-                    />
-                  </div>
-                  <div className="flex justify-center">
-                    {responses?.length === questions?.length ? (
-                      <>
-                        {isSubmitting ? (
-                          <LoadingButton
-                            variant="contained"
-                            type="button"
-                            loading
-                          >
-                            Submit
-                          </LoadingButton>
-                        ) : (
-                          <Button
-                            variant="contained"
-                            onClick={async () => {
-                              console.log(responses);
-                              setSubmitting(true);
-                              const res = await axios.post(
-                                `${import.meta.env.VITE_API_BASE_URL}/iv/uploadResponses`,
-                                { interviewId: id, answers: responses },
-                                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-                              );
-                              const data = await axios.post(
-                                `${import.meta.env.VITE_API_BASE_URL}/ai/checkAnswers`,
-                                { responses },
-                                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-                              );
-                              localStorage.setItem("interviewId", id);
-                              localStorage.setItem(
-                                "dataList",
-                                JSON.stringify(responses)
-                              );
-                              localStorage.setItem(
-                                "scores",
-                                JSON.stringify(data.data.data)
-                              );
-                              navigateTo("/feedback");
-                              setSubmitting(false);
-                            }}
-                          >
-                            Submit
-                          </Button>
-                        )}
-                      </>
-                    ) : (
-                      <div className="flex flex-row">
-                        <div>
-                          <button
-                            disabled={disableAll}
-                            className="text-lg"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              // startStopListening();
-                              if (isListening) {
-                                setIsListening(false);
-                                stop();
-                                // addComponent();
-                                if (count === questions.length - 1) {
-                                  nothing();
-                                } else {
-                                  addComponent();
-                                }
-                              } else {
-                                setIsListening(true);
-                                listen();
-                              }
-                            }}
-                          >
-                            <MicIcon
-                              fontSize="large"
-                              sx={{ color: `${isListening ? "red" : "black"}` }}
+                    </div>
+                </div>
+
+                {/* Interaction Section */}
+                <div className="lg:col-span-7 h-full flex flex-col">
+                    <div className="glass-card flex-1 p-8 overflow-y-auto mb-6">
+                        <div className="mb-12">
+                            <NewQuestion idx={count} questions={questions} />
+                            {responses.map((_, i) => (
+                                <NewResponse key={i} idx={i} responses={responses} />
+                            ))}
+                        </div>
+
+                        <div className="mt-auto">
+                            <textarea
+                                className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white text-lg focus:ring-4 focus:ring-indigo-500/20 outline-none transition-all placeholder:text-slate-600"
+                                rows={4}
+                                value={value}
+                                onChange={(e) => setValue(e.target.value)}
+                                placeholder="Start speaking or type your answer here..."
                             />
-                          </button>
-                          {/* <Compo /> */}
                         </div>
-                        {/* <Button className='' variant="contained" onClick={(count === questions.length - 1) ? nothing : addComponent} type='button' disabled={((responses.length === questions.length) || (disableAll)) ? true : false}>Save</Button> */}
-                      </div>
-                    )}
-                  </div>
-                </Box>
-              </div>
+                    </div>
+
+                    <div className="flex gap-4 justify-between items-center p-4 glass-card">
+                        <div className="flex items-center gap-6">
+                            <button
+                                disabled={disableAll}
+                                onClick={() => {
+                                    if (isListening) {
+                                        stop();
+                                        setIsListening(false);
+                                    } else {
+                                        listen();
+                                        setIsListening(true);
+                                    }
+                                }}
+                                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${isListening ? 'bg-red-500 animate-pulse' : 'bg-slate-800 hover:bg-slate-700'} ${disableAll ? 'opacity-20 cursor-not-allowed' : ''}`}
+                            >
+                                <MicIcon sx={{ fontSize: 32, color: 'white' }} />
+                            </button>
+                            <div>
+                                <p className="text-white font-bold">{isListening ? 'Listening...' : 'Microphone Off'}</p>
+                                <p className="text-slate-500 text-sm">Question {count + 1} of {questions.length}</p>
+                            </div>
+                        </div>
+
+                        {count === questions.length - 1 ? (
+                            <button 
+                                onClick={handleSubmit}
+                                disabled={isSubmitting || disableAll}
+                                className="btn-premium px-12 text-white h-14"
+                            >
+                                {isSubmitting ? 'Evaluating Output...' : 'Final Submit'}
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={handleNext}
+                                disabled={disableAll}
+                                className="btn-premium px-12 text-white h-14"
+                            >
+                                Next Question
+                            </button>
+                        )}
+                    </div>
+                </div>
             </div>
-          )}
-        </>
-      )}
-    </>
-  );
+        </div>
+    );
 }
 
 export default Interview;
-
-
-// import React, { useEffect, useRef, useState } from "react";
-// import { Box, Button } from "@mui/material";
-// import MicIcon from "@mui/icons-material/Mic";
-// import axios from "axios";
-// import { useNavigate, useParams } from "react-router-dom";
-// import LoadingButton from "@mui/lab/LoadingButton";
-
-// // Component for displaying questions
-// const NewQuestion = ({ idx, questions }) => {
-//   return (
-//     <div className="font-bold mb-3">
-//       {`Question-${idx + 1}: ${questions[idx].question}`}
-//     </div>
-//   );
-// };
-
-// // Component for displaying responses
-// const NewResponse = ({ responses, idx }) => {
-//   return (
-//     <div className="mb-3">
-//       {`Answer-${idx + 1}: ${responses[idx].answer}`}
-//     </div>
-//   );
-// };
-
-// function Interview() {
-//   const { id } = useParams();
-//   const [value, setValue] = useState("");
-//   const [isListening, setIsListening] = useState(false);
-//   const [videoEnded, setVideoEnded] = useState(false);
-//   const [count, setCount] = useState(0);
-//   const videoRef = useRef(null);
-//   const [isSubmitting, setSubmitting] = useState(false);
-//   const [questions, setQuestions] = useState([]);
-//   const [loader, setLoader] = useState(true);
-//   const [components, setComponents] = useState([]);
-//   const [responses, setResponses] = useState([]);
-//   const [videoUrl, setVideoUrl] = useState("");
-//   const recognitionRef = useRef(null); // Store recognition instance
-
-//   const navigateTo = useNavigate();
-
-//   // Initialize SpeechRecognition (with webkitSpeechRecognition fallback for Chrome)
-//   useEffect(() => {
-//     if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
-//       const SpeechRecognition =
-//         window.SpeechRecognition || window.webkitSpeechRecognition;
-//       const recognition = new SpeechRecognition();
-//       recognition.continuous = true;
-//       recognition.interimResults = true;
-//       recognition.lang = "en-US";
-
-//       recognition.onresult = (event) => {
-//         const transcript = Array.from(event.results)
-//           .map((result) => result[0].transcript)
-//           .join("");
-//         setValue(transcript); // Update the transcribed text
-//       };
-
-//       recognition.onend = () => {
-//         console.log("Speech recognition ended.");
-//         setIsListening(false);
-//       };
-
-//       recognitionRef.current = recognition; // Store the instance
-//     } else {
-//       alert(
-//         "Your browser does not support speech recognition. Please use Google Chrome."
-//       );
-//     }
-//   }, []);
-
-//   // Function to start listening
-//   const startListening = () => {
-//     if (recognitionRef.current) {
-//       recognitionRef.current.start();
-//       setIsListening(true);
-//     }
-//   };
-
-//   // Function to stop listening
-//   const stopListening = () => {
-//     if (recognitionRef.current) {
-//       recognitionRef.current.stop();
-//       setIsListening(false);
-//     }
-//   };
-
-//   const playVideo = () => {
-//     if (videoRef.current) {
-//       videoRef.current.play();
-//     }
-//   };
-
-//   // Fetch questions and video URL from API
-//   useEffect(() => {
-//     const fetchData = async () => {
-//       try {
-//         const { data } = await axios.get(
-//           "https://lisa-node-backend.onrender.com/iv/getQuestions"
-//         );
-//         const res = await axios.post(
-//           "https://lisa-node-backend.onrender.com/iv/getIV",
-//           { interviewId: id }
-//         );
-//         const iv = res.data.data[0];
-//         let temp = [];
-//         if (iv.skills.toLowerCase().includes("c++")) {
-//           temp.push("c++");
-//         }
-//         if (iv.skills.toLowerCase().includes("python")) {
-//           temp.push("python");
-//         }
-//         if (iv.skills.toLowerCase().includes("javascript")) {
-//           temp.push("js");
-//         }
-
-//         let temp2 = [];
-//         let finals = [];
-//         for (let i = 0; i < data.data.length; i++) {
-//           if (data.data[i]?.type === "basic" && finals.length === 0) {
-//             finals.push(data.data[i]);
-//           } else {
-//             if (temp.includes(data.data[i]?.type)) {
-//               temp2.push(data.data[i]);
-//             }
-//           }
-//         }
-
-//         let indices = [];
-//         for (let i = 0; i < iv.count; i++) {
-//           let idx = Math.floor(Math.random() * temp2.length);
-//           while (indices.includes(idx)) {
-//             idx = Math.floor(Math.random() * temp2.length);
-//           }
-//           indices.push(idx);
-//           finals.push(temp2[idx]);
-//         }
-
-//         setQuestions(finals);
-//         setVideoUrl(finals[0]?.videoUrl || "");
-//         setComponents([<NewQuestion key={0} idx={0} questions={finals} />]);
-//       } catch (e) {
-//         console.error(e.message);
-//       } finally {
-//         setLoader(false); // Stop loading
-//       }
-//     };
-
-//     fetchData();
-//   }, [id]);
-
-//   if (loader) {
-//     return <div>Loading...</div>; // Fallback UI while data is loading
-//   }
-
-//   return (
-//     <div className="mainUI">
-//       <div className="text-center text-lg p-1 font-bold">Interview</div>
-//       <div className="grid grid-cols-12 !h-full">
-//         <Box
-//           sx={{
-//             width: 500,
-//             height: 500,
-//             borderRadius: 5,
-//           }}
-//           className="rounded-lg px-2 col-span-5 ml-3 !w-full !h-full"
-//         >
-//           <video controls={false} ref={videoRef} className="h-full w-full">
-//             <source id="hr-vdo" src={videoUrl} type="video/mp4" />
-//             Your browser does not support HTML video.
-//           </video>
-//           <div className="flex justify-center">
-//             <Button
-//               className="absolute bottom-16"
-//               onClick={playVideo}
-//               variant="contained"
-//             >
-//               Start Interview
-//             </Button>
-//           </div>
-//         </Box>
-//         <Box
-//           sx={{
-//             width: 500,
-//             height: 500,
-//             borderRadius: 5,
-//           }}
-//           className="rounded-lg p-5 col-span-7 !w-full !h-full"
-//         >
-//           <div className="h-[600px] w-full p-5 bg-gray-200 rounded-lg overflow-y-scroll">
-//             {components.map((cmp, i) => (
-//               <div key={i}>
-//                 {cmp}
-//                 {responses.length > i && (
-//                   <NewResponse responses={responses} idx={i} />
-//                 )}
-//               </div>
-//             ))}
-//             <div>{value}</div> {/* Display the transcribed text */}
-//           </div>
-//           <div className="flex justify-center">
-//             <Button
-//               variant="contained"
-//               onClick={() => {
-//                 if (isListening) {
-//                   stopListening();
-//                 } else {
-//                   startListening();
-//                 }
-//                 setIsListening(!isListening);
-//               }}
-//             >
-//               {isListening ? "Stop Listening" : "Start Listening"}
-//             </Button>
-//           </div>
-//         </Box>
-//       </div>
-//     </div>
-//   );
-// }
-
-// export default Interview;
-

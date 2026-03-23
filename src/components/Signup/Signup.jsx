@@ -1,118 +1,77 @@
-import {
-    Avatar,
-    Box,
-    Button,
-    Container,
-    Grid,
-    TextField,
-    Typography,
-  } from "@mui/material";
-  import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-  import React from "react";
-  import Link from "@mui/material/Link";
-  import axios from 'axios'
-  import { useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
-  const Signup = () => {
-    const navigateTo=useNavigate();
-    const handleSubmit = async(event) => {
-      event.preventDefault();
-      const data = new FormData(event.currentTarget);
-      var email = data.get("email");
-      var password = data.get("password");
-    //   console.log(email);
-      try{
-          const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/signup`,{email,password})
-          if(response.data.status===true){
-            navigateTo('/')
-            toast.success("Signup Successfully")
-          }
-          else {
-            toast.error("invalid credentials")
-          }
-      }
-      catch(e){
-          console.log(e.message);
-      }
+import React, { useState } from 'react';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+
+function Signup() {
+    const navigateTo = useNavigate();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/signup`, { email, password });
+            if (res.data.status) {
+                toast.success('Account created! Please login.');
+                navigateTo('/');
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Signup failed');
+        } finally {
+            setLoading(false);
+        }
     };
+
     return (
-      <>
-        <Container component="main" maxWidth="xs">
-          <Box
-            sx={{
-              marginTop: 4,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              p: "1.5rem",
-              pt: "2rem",
-              pb: "3rem",
-              borderColor: "grey.600",
-            }}
-          >
-            <Avatar sx={{ m: 1, bgcolor: "secondary.main" }}>
-              <LockOutlinedIcon />
-            </Avatar>
-            <Typography component="h1" variant="h5" className="infotext">
-          Create your account
-        </Typography>
-            <Box
-              component="form"
-              onSubmit={handleSubmit}
-              noValidate
-              sx={{ mt: 1, mb: 3 }}
-              className="emailauthclass"
-            >
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                id="email"
-                label="email"
-                name="email"
-                autoComplete="email"
-                className="email"
-              />
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                name="password"
-                label="Password"
-                type="password"
-                id="password"
-                autoComplete="current-password"
-                className="password"
-              />
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                className="submitbtn"
-                sx={{ mt: 3, mb: 2 }}
-              >
-                Sign Up
-              </Button>
-              <Grid container>
-                <Grid item>
-                  <Typography>
-                  {"Already have an account? "} 
-                    <Link
-                      href="/"
-                      variant="body2"
-                      underline="none"
-                      sx={{ fontSize: "16px" }}
-                    >
-                      {"Sign in"}
-                    </Link>
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Box>
-          </Box>
-        </Container>
-      </>
+        <div className="min-h-screen flex items-center justify-center premium-gradient p-4">
+            <div className="glass-card w-full max-w-md p-8 animate-float">
+                <div className="text-center mb-10">
+                    <h1 className="text-4xl font-bold text-gradient mb-2">Create Account</h1>
+                    <p className="text-slate-400">Join Lisa Interviewer and start your journey</p>
+                </div>
+                
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+                        <input
+                            type="email"
+                            className="input-premium text-white"
+                            placeholder="name@company.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                    </div>
+                    
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+                        <input
+                            type="password"
+                            className="input-premium text-white"
+                            placeholder="••••••••"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+                    
+                    <button type="submit" disabled={loading} className="btn-premium w-full text-white">
+                        {loading ? 'Creating Account...' : 'Sign Up'}
+                    </button>
+                </form>
+                
+                <div className="mt-8 text-center text-sm text-slate-400">
+                    Already have an account? 
+                    <button onClick={() => navigateTo('/')} className="text-indigo-400 hover:text-indigo-300 font-semibold ml-2">
+                        Sign in
+                    </button>
+                </div>
+            </div>
+        </div>
     );
-  };
-  export default Signup;
-  
+}
+
+export default Signup;

@@ -1,124 +1,84 @@
-import {
-  Avatar,
-  Box,
-  Button,
-  Container,
-  Grid,
-  TextField,
-  Typography,
-} from "@mui/material";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import React from "react";
-import Link from "@mui/material/Link";
-import axios from 'axios'
+import React, { useState } from "react";
+import axios from 'axios';
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 const Login = () => {
-  const navigateTo = useNavigate();
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    var email = data.get("email");
-    var password = data.get("password");
-    // console.log(email);
-    try {
-      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/login`, { email, password })
-      if (response.data.status === true) {
-        localStorage.clear();
-        localStorage.setItem("token", response.data.token);
-        localStorage.setItem("email", response.data.email);
-        localStorage.setItem("name", response.data.name);
-        toast.success("Login Successfully")
-        console.log("Connection Successfull")
-        navigateTo('/dashboard')
-      }
-      else {
-        toast.error("invalid credentials")
-      }
-      // console.log(response.data.status);
-    }
-    catch (e) {
-      console.log(e.message);
-    }
-  };
-  return (
-    <>
-      <Container component="main" maxWidth="xs">
-        <Box
-          sx={{
-            marginTop: 4,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            p: "1.5rem",
-            pt: "2rem",
-            pb: "3rem",
-            borderColor: "grey.600",
-          }}
-        >
-          <Avatar sx={{ m: 1, bgcolor: "secondary.main" }}>
-            <LockOutlinedIcon />
-          </Avatar>
-          <Typography component="h1" variant="h5" className="infotext">
-            Welcome Back!
-          </Typography>
-          <Box
-            component="form"
-            onSubmit={handleSubmit}
-            noValidate
-            sx={{ mt: 1, mb: 3 }}
-            className="emailauthclass"
-          >
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="email"
-              label="email"
-              name="email"
-              autoComplete="email"
-              className="email"
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Password"
-              type="password"
-              id="password"
-              autoComplete="current-password"
-              className="password"
-            />
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              className="submitbtn"
-              sx={{ mt: 3, mb: 2 }}
-            >
-              Sign In
-            </Button>
-            <Grid container>
-              <Grid item>
-                <Typography>
-                  {"Don't have an account? "}
-                  <Link
-                    href="/signup"
-                    variant="body2"
-                    underline="none"
-                    sx={{ fontSize: "16px" }}
-                  >
-                    {"Sign up"}
-                  </Link>
-                </Typography>
-              </Grid>
-            </Grid>
-          </Box>
-        </Box>
-      </Container>
-    </>
-  );
-};
+    const navigateTo = useNavigate();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/login`, { email, password });
+            if (res.data.status) {
+                localStorage.setItem('token', res.data.token);
+                localStorage.setItem('email', res.data.email);
+                localStorage.setItem('name', res.data.name);
+                localStorage.setItem('role', res.data.role); // Store role
+                
+                toast.success('Login Successful');
+                
+                // Role-based redirection
+                if (res.data.role === 'admin') {
+                    navigateTo('/admin');
+                } else {
+                    navigateTo('/dashboard');
+                }
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Login failed');
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center premium-gradient p-4">
+            <div className="glass-card w-full max-w-md p-8 animate-float">
+                <div className="text-center mb-10">
+                    <h1 className="text-4xl font-bold text-gradient mb-2">Lisa Interviewer</h1>
+                    <p className="text-slate-400">Welcome back, Please login to your account</p>
+                </div>
+                
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+                        <input
+                            type="email"
+                            className="input-premium text-white"
+                            placeholder="name@company.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                    </div>
+                    
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+                        <input
+                            type="password"
+                            className="input-premium text-white"
+                            placeholder="••••••••"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+                    
+                    <button type="submit" className="btn-premium w-full text-white">
+                        Sign In
+                    </button>
+                </form>
+                
+                <div className="mt-8 text-center text-sm text-slate-400">
+                    Don't have an account? 
+                    <button onClick={() => navigateTo('/signup')} className="text-indigo-400 hover:text-indigo-300 font-semibold ml-2">
+                        Sign up for free
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default Login;

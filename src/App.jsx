@@ -5,12 +5,21 @@ import Login from './components/Login/Login';
 import Signup from './components/Signup/Signup';
 import Dashboard from './components/Dashboard/Dashboard';
 import Feedback from './components/Feedback/Feedback';
+import AdminDashboard from './components/Admin/AdminDashboard';
+import Reports from './components/Admin/Reports';
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, roleRequired }) => {
   const token = localStorage.getItem('token');
+  const userRole = localStorage.getItem('role');
+
   if (!token) {
     return <Navigate to="/" replace />;
   }
+
+  if (roleRequired && userRole !== roleRequired) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return children;
 };
 
@@ -25,6 +34,18 @@ function App() {
           <Dashboard />
         </ProtectedRoute>
       }/> 
+      
+      <Route path="/admin" element={
+        <ProtectedRoute roleRequired="admin">
+          <AdminDashboard />
+        </ProtectedRoute>
+      }/>
+
+      <Route path="/admin/reports" element={
+        <ProtectedRoute roleRequired="admin">
+          <Reports />
+        </ProtectedRoute>
+      }/>
       
       <Route path="/interview/:id" element={
         <ProtectedRoute>
