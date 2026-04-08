@@ -13,13 +13,13 @@ function Signup() {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/signup`, { email, password });
+            const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/signup`, { email, password }, { timeout: 10000 });
             if (res.data.status) {
                 toast.success('Account created! Please login.');
                 navigateTo('/');
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Signup failed');
+            toast.error(err.response?.data?.message || 'Signup failed or timed out. Please try again.');
         } finally {
             setLoading(false);
         }

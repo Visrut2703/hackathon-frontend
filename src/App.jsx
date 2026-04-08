@@ -58,6 +58,9 @@ function App() {
           <Feedback />
         </ProtectedRoute>
       }/>
+
+      {/* Catch-all route for undefined paths like /interview without ID */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

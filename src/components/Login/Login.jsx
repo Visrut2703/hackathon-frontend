@@ -7,11 +7,13 @@ const Login = () => {
     const navigateTo = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setLoading(true);
         try {
-            const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/login`, { email, password });
+            const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/login`, { email, password }, { timeout: 10000 });
             if (res.data.status) {
                 localStorage.setItem('token', res.data.token);
                 localStorage.setItem('email', res.data.email);
@@ -28,7 +30,9 @@ const Login = () => {
                 }
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Login failed');
+            toast.error(err.response?.data?.message || 'Login failed or timed out. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -65,8 +69,8 @@ const Login = () => {
                         />
                     </div>
                     
-                    <button type="submit" className="btn-premium w-full text-white">
-                        Sign In
+                    <button type="submit" disabled={loading} className="btn-premium w-full text-white">
+                        {loading ? 'Signing In...' : 'Sign In'}
                     </button>
                 </form>
                 
